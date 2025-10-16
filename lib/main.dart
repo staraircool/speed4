@@ -38,14 +38,21 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
   String _instructions =
       '1) Set the pitch length (meters)\n2) Press START when you release the ball\n3) Press STOP when the ball reaches the batsman';
 
-  final List<int> _presetMeters = List<int>.generate(21, (i) => 10 + i); // 10..30
-  int? _selectedMeterIndex;
+  final List<int> _meterValues = List<int>.generate(31, (i) => 10 + i); // 10..40
+  final List<int> _centimeterValues = List<int>.generate(101, (i) => i); // 0..100
+  late FixedExtentScrollController _meterController;
+  late FixedExtentScrollController _cmController;
+  int _selectedMeterIndex = 10; // default index corresponds to 20m
+  int _selectedCmIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _selectedMeterIndex = _presetMeters.indexOf(20);
-    _pitchMeters = 20.0;
+    _selectedMeterIndex = _meterValues.indexOf(20);
+    _selectedCmIndex = 0;
+    _pitchMeters = _meterValues[_selectedMeterIndex] + (_selectedCmIndex / 100.0);
+    _meterController = FixedExtentScrollController(initialItem: _selectedMeterIndex);
+    _cmController = FixedExtentScrollController(initialItem: _selectedCmIndex);
   }
 
   void _toggleStartStop() {
@@ -69,10 +76,18 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
     }
   }
 
-  void _selectMeter(int index) {
+  void _onMeterChanged(int index) {
     setState(() {
       _selectedMeterIndex = index;
-      _pitchMeters = _presetMeters[index].toDouble();
+      _pitchMeters = _meterValues[_selectedMeterIndex] + (_selectedCmIndex / 100.0);
+    });
+  }
+
+  void _onCmChanged(int index) {
+    setState(() {
+      _selectedCmIndex = index;
+      _pitchMeters = _meterValues[_selectedMeterIndex] + (_selectedCmIndex / 100.0);
+      // if user selects 100 cm, we convert to +1m logically (handled by calculation)
     });
   }
 
@@ -192,61 +207,74 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 1.5),
               ),
               const SizedBox(height: 12),
-              SizedBox(
-                height: 80,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _presetMeters.length + 1,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) {
-                    if (index < _presetMeters.length) {
-                      final meters = _presetMeters[index];
-                      final selected = _selectedMeterIndex == index;
-                      return GestureDetector(
-                        onTap: () => _selectMeter(index),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 84,
-                          margin: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: selected ? Theme.of(context).colorScheme.primary : Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: selected ? [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3))] : null,
-                          ),
-                          alignment: Alignment.center,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text('${meters.toString()} m', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: selected ? Colors.white : Colors.black)),
-                            ],
-                          ),
-                        ),
-                      );
-                    } else {
-                      final custom = _selectedMeterIndex == null;
-                      return GestureDetector(
-                        onTap: _askCustomMeter,
-                        child: Container(
-                          width: 100,
-                          margin: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: custom ? Theme.of(context).colorScheme.primary : Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          alignment: Alignment.center,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.edit, color: custom ? Colors.white : Colors.black54),
-                              const SizedBox(height: 4),
-                              Text('Custom', style: TextStyle(color: custom ? Colors.white : Colors.black54)),
-                            ],
+              Column(
+                children: [
+                  Text(
+                    'Choose the length: ${_meterValues[_selectedMeterIndex]} {meters} * ${_selectedCmIndex.toString().padLeft(2, '0')} [centimeters]',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 140,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Meters picker
+                        SizedBox(
+                          width: 140,
+                          child: ListWheelScrollView.useDelegate(
+                            controller: _meterController,
+                            itemExtent: 40,
+                            diameterRatio: 1.2,
+                            onSelectedItemChanged: _onMeterChanged,
+                            physics: const FixedExtentScrollPhysics(),
+                            childDelegate: ListWheelChildBuilderDelegate(
+                              childCount: _meterValues.length,
+                              builder: (context, index) {
+                                final meters = _meterValues[index];
+                                final selected = index == _selectedMeterIndex;
+                                return Center(
+                                  child: Text(
+                                    '${meters} m',
+                                    style: TextStyle(fontSize: selected ? 18 : 14, fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                                        color: selected ? Theme.of(context).colorScheme.primary : Colors.black87),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         ),
-                      );
-                    }
-                  },
-                ),
+                        const SizedBox(width: 24),
+                        // Centimeters picker
+                        SizedBox(
+                          width: 120,
+                          child: ListWheelScrollView.useDelegate(
+                            controller: _cmController,
+                            itemExtent: 40,
+                            diameterRatio: 1.2,
+                            onSelectedItemChanged: _onCmChanged,
+                            physics: const FixedExtentScrollPhysics(),
+                            childDelegate: ListWheelChildBuilderDelegate(
+                              childCount: _centimeterValues.length,
+                              builder: (context, index) {
+                                final cm = _centimeterValues[index];
+                                final selected = index == _selectedCmIndex;
+                                return Center(
+                                  child: Text(
+                                    '${cm.toString().padLeft(2, '0')} cm',
+                                    style: TextStyle(fontSize: selected ? 18 : 14, fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                                        color: selected ? Theme.of(context).colorScheme.primary : Colors.black87),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
               Expanded(
@@ -261,19 +289,45 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
               Center(
                 child: GestureDetector(
                   onTap: _toggleStartStop,
-                  child: Container(
+                  child: SizedBox(
                     width: 120,
                     height: 120,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(colors: _running ? [Colors.redAccent, Colors.red] : [Colors.green, Colors.greenAccent]),
-                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 6))],
-                    ),
-                    child: Center(
-                      child: Text(
-                        _running ? 'STOP' : 'START',
-                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // cricket ball base
+                        Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            color: _running ? Colors.red.shade700 : Colors.red.shade600,
+                            shape: BoxShape.circle,
+                            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 6))],
+                          ),
+                        ),
+                        // seam lines (simple)
+                        Transform.rotate(
+                          angle: 0.35,
+                          child: Container(
+                            width: 100,
+                            height: 6,
+                            decoration: BoxDecoration(color: Colors.white70, borderRadius: BorderRadius.circular(6)),
+                          ),
+                        ),
+                        Transform.rotate(
+                          angle: -0.35,
+                          child: Container(
+                            width: 100,
+                            height: 6,
+                            decoration: BoxDecoration(color: Colors.white70, borderRadius: BorderRadius.circular(6)),
+                          ),
+                        ),
+                        // center label
+                        Text(
+                          _running ? 'STOP' : 'START',
+                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ],
                     ),
                   ),
                 ),
