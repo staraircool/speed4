@@ -1,0 +1,27 @@
+workflows:
+  android-build:
+    name: Android Build
+    max_build_duration: 120
+    environment:
+      flutter: stable
+      java: 17
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Set up Flutter
+        script: |
+          flutter clean
+          flutter pub get
+      - name: Build Android Release
+        script: |
+          flutter build apk --release
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+    publishing:
+      email:
+        recipients:
+          - your_email@example.com #_
