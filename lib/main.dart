@@ -6,14 +6,6 @@ void main() {
   runApp(const SpeedyApp());
 }
 
-import 'package:flutter/material.dart';
-import 'dart:async';
-import 'speed_calc.dart';
-
-void main() {
-  runApp(const SpeedyApp());
-}
-
 class SpeedyApp extends StatelessWidget {
   const SpeedyApp({super.key});
 
