@@ -116,10 +116,29 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
     );
 
     if (result != null && result > 0) {
+      // Convert result into meters and centimeters, clamp to available ranges
+      int meters = result.floor();
+      int cm = ((result - meters) * 100).round();
+      if (cm >= 100) {
+        meters += 1;
+        cm = 0;
+      }
+      if (meters < _meterValues.first) meters = _meterValues.first;
+      if (meters > _meterValues.last) meters = _meterValues.last;
+      final meterIndex = _meterValues.indexOf(meters);
+      final cmIndex = cm.clamp(0, _centimeterValues.length - 1);
+
       setState(() {
-        _pitchMeters = result;
-        _selectedMeterIndex = null; // custom
+        _pitchMeters = meters + (cm / 100.0);
+        _selectedMeterIndex = meterIndex;
+        _selectedCmIndex = cmIndex;
       });
+
+      // Move controllers to reflect custom choice
+      try {
+        _meterController.jumpToItem(meterIndex);
+        _cmController.jumpToItem(cmIndex);
+      } catch (_) {}
     }
   }
 
