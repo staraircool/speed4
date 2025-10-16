@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'dart:async';
 import 'speed_calc.dart';
 
@@ -91,56 +92,6 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
     });
   }
 
-  Future<void> _askCustomMeter() async {
-    final controller = TextEditingController(text: _pitchMeters.toStringAsFixed(2));
-    final result = await showDialog<double?>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Custom pitch length (meters)'),
-        content: TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(hintText: 'e.g. 18.5'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(null), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              final val = double.tryParse(controller.text);
-              Navigator.of(context).pop(val);
-            },
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-
-    if (result != null && result > 0) {
-      // Convert result into meters and centimeters, clamp to available ranges
-      int meters = result.floor();
-      int cm = ((result - meters) * 100).round();
-      if (cm >= 100) {
-        meters += 1;
-        cm = 0;
-      }
-      if (meters < _meterValues.first) meters = _meterValues.first;
-      if (meters > _meterValues.last) meters = _meterValues.last;
-      final meterIndex = _meterValues.indexOf(meters);
-      final cmIndex = cm.clamp(0, _centimeterValues.length - 1);
-
-      setState(() {
-        _pitchMeters = meters + (cm / 100.0);
-        _selectedMeterIndex = meterIndex;
-        _selectedCmIndex = cmIndex;
-      });
-
-      // Move controllers to reflect custom choice
-      try {
-        _meterController.jumpToItem(meterIndex);
-        _cmController.jumpToItem(cmIndex);
-      } catch (_) {}
-    }
-  }
 
   Future<void> _editInstructions() async {
     final controller = TextEditingController(text: _instructions);
@@ -189,9 +140,67 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
     );
   }
 
-  String _speedText() {
-    if (_speedKmh == null) return '-- km/h';
-    return '${_speedKmh!.toStringAsFixed(1)} km/h';
+  // speed display is handled directly in the build method (_speedKmh)
+
+  Future<void> _showPitchPickerModal() async {
+    // Ensure controllers reflect current indices
+    try {
+      _meterController.jumpToItem(_selectedMeterIndex);
+      _cmController.jumpToItem(_selectedCmIndex);
+    } catch (_) {}
+
+    await showCupertinoModalPopup<void>(
+      context: context,
+      builder: (context) => Container(
+        height: 320,
+        color: Colors.white,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  CupertinoButton(
+                    child: const Text('Cancel'),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  CupertinoButton(
+                    child: const Text('Done'),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: CupertinoPicker(
+                      scrollController: _meterController,
+                      itemExtent: 40,
+                      onSelectedItemChanged: _onMeterChanged,
+                      children: _meterValues.map((m) => Center(child: Text('$m m'))).toList(),
+                    ),
+                  ),
+                  const VerticalDivider(width: 1),
+                  Expanded(
+                    child: CupertinoPicker(
+                      scrollController: _cmController,
+                      itemExtent: 40,
+                      onSelectedItemChanged: _onCmChanged,
+                      children: _centimeterValues.map((c) => Center(child: Text('${c.toString().padLeft(2, '0')} cm'))).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -226,128 +235,71 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 1.5),
               ),
               const SizedBox(height: 12),
-              Column(
-                children: [
-                  Text(
-                    'Choose the length: ${_meterValues[_selectedMeterIndex]} {meters} * ${_selectedCmIndex.toString().padLeft(2, '0')} [centimeters]',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              // Tappable selector that opens a CupertinoPicker modal
+              GestureDetector(
+                onTap: _showPitchPickerModal,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
                   ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 140,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Meters picker
-                        SizedBox(
-                          width: 140,
-                          child: ListWheelScrollView.useDelegate(
-                            controller: _meterController,
-                            itemExtent: 40,
-                            diameterRatio: 1.2,
-                            onSelectedItemChanged: _onMeterChanged,
-                            physics: const FixedExtentScrollPhysics(),
-                            childDelegate: ListWheelChildBuilderDelegate(
-                              childCount: _meterValues.length,
-                              builder: (context, index) {
-                                final meters = _meterValues[index];
-                                final selected = index == _selectedMeterIndex;
-                                return Center(
-                                  child: Text(
-                                    '${meters} m',
-                                    style: TextStyle(fontSize: selected ? 18 : 14, fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                                        color: selected ? Theme.of(context).colorScheme.primary : Colors.black87),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 24),
-                        // Centimeters picker
-                        SizedBox(
-                          width: 120,
-                          child: ListWheelScrollView.useDelegate(
-                            controller: _cmController,
-                            itemExtent: 40,
-                            diameterRatio: 1.2,
-                            onSelectedItemChanged: _onCmChanged,
-                            physics: const FixedExtentScrollPhysics(),
-                            childDelegate: ListWheelChildBuilderDelegate(
-                              childCount: _centimeterValues.length,
-                              builder: (context, index) {
-                                final cm = _centimeterValues[index];
-                                final selected = index == _selectedCmIndex;
-                                return Center(
-                                  child: Text(
-                                    '${cm.toString().padLeft(2, '0')} cm',
-                                    style: TextStyle(fontSize: selected ? 18 : 14, fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                                        color: selected ? Theme.of(context).colorScheme.primary : Colors.black87),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '${_meterValues[_selectedMeterIndex]} m',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_selectedCmIndex.toString().padLeft(2, '0')} cm',
+                        style: const TextStyle(fontSize: 14, color: Colors.black54),
+                      ),
+                      const SizedBox(width: 12),
+                      const Icon(Icons.keyboard_arrow_down),
+                    ],
                   ),
-                ],
+                ),
               ),
               const SizedBox(height: 24),
               Expanded(
                 child: Center(
-                  child: Text(
-                    _speedText(),
-                    style: const TextStyle(fontSize: 72, fontWeight: FontWeight.bold),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        _speedKmh == null ? '--' : _speedKmh!.toStringAsFixed(1),
+                        style: const TextStyle(fontSize: 96, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 14.0),
+                        child: Text(
+                          'km/h',
+                          style: TextStyle(fontSize: 28, color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
               const SizedBox(height: 12),
-              Center(
-                child: GestureDetector(
-                  onTap: _toggleStartStop,
-                  child: SizedBox(
-                    width: 120,
-                    height: 120,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // cricket ball base
-                        Container(
-                          width: 120,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            color: _running ? Colors.red.shade700 : Colors.red.shade600,
-                            shape: BoxShape.circle,
-                            boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 6))],
-                          ),
-                        ),
-                        // seam lines (simple)
-                        Transform.rotate(
-                          angle: 0.35,
-                          child: Container(
-                            width: 100,
-                            height: 6,
-                            decoration: BoxDecoration(color: Colors.white70, borderRadius: BorderRadius.circular(6)),
-                          ),
-                        ),
-                        Transform.rotate(
-                          angle: -0.35,
-                          child: Container(
-                            width: 100,
-                            height: 6,
-                            decoration: BoxDecoration(color: Colors.white70, borderRadius: BorderRadius.circular(6)),
-                          ),
-                        ),
-                        // center label
-                        Text(
-                          _running ? 'STOP' : 'START',
-                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
+              // Full-width ElevatedButton for start/end
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _running ? Colors.red.shade700 : Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: _toggleStartStop,
+                  child: Text(
+                    _running ? 'END' : 'START',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
               ),
