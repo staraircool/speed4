@@ -4,10 +4,14 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'speed_calc.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 enum Unit { kmh, mph }
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Initialize Google Mobile Ads SDK
+  await MobileAds.instance.initialize();
   runApp(const SpeedyApp());
 }
 
@@ -49,6 +53,12 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
   bool _vibrationEnabled = false;
   bool _useHold = false; // false -> Tap (default), true -> Hold
 
+  // AdMob rewarded ad state
+  RewardedAd? _rewardedAd;
+  bool _isRewardedAdLoading = false;
+  bool _hasWatchedAdThisSession = false;
+  bool _adRewardEarned = false; // temporary flag to detect reward during show
+
   final List<int> _meterValues =
       List<int>.generate(31, (i) => 10 + i); // 10..40
   final List<int> _centimeterValues =
@@ -70,15 +80,103 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
     _meterController =
         FixedExtentScrollController(initialItem: _selectedMeterIndex);
     _cmController = FixedExtentScrollController(initialItem: _selectedCmIndex);
+    // Preload rewarded ad for the session
+    _loadRewardedAd();
   }
 
-  void _toggleStartStop() {
-    if (!_running) {
+  @override
+  void dispose() {
+    _rewardedAd?.dispose();
+    _meterController.dispose();
+    _cmController.dispose();
+    super.dispose();
+  }
+
+  void _loadRewardedAd() {
+    if (_isRewardedAdLoading || _rewardedAd != null) return;
+    _isRewardedAdLoading = true;
+    RewardedAd.load(
+      adUnitId: 'ca-app-pub-4420776878768276/1204620705',
+      request: const AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (ad) {
+          _rewardedAd = ad;
+          _isRewardedAdLoading = false;
+          // attach callbacks
+          _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+            onAdDismissedFullScreenContent: (ad) {
+              // dispose and clear
+              ad.dispose();
+              _rewardedAd = null;
+              _isRewardedAdLoading = false;
+              // if reward was earned, mark session flag and start
+              if (_adRewardEarned) {
+                _hasWatchedAdThisSession = true;
+                _adRewardEarned = false;
+                // Safe call to start measurement after ad finishes
+                try {
+                  _start();
+                } catch (_) {}
+              } else {
+                // user didn't finish ad — inform them
+                try {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content:
+                          Text('Ad not completed. Tap Start to try again.')));
+                } catch (_) {}
+              }
+              // preload next ad for future sessions if needed
+              _loadRewardedAd();
+            },
+            onAdFailedToShowFullScreenContent: (ad, error) {
+              ad.dispose();
+              _rewardedAd = null;
+              _isRewardedAdLoading = false;
+              try {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Failed to show ad. Starting now.')));
+              } catch (_) {}
+              // fallback: start immediately
+              try {
+                _start();
+              } catch (_) {}
+              _loadRewardedAd();
+            },
+          );
+        },
+        onAdFailedToLoad: (error) {
+          _isRewardedAdLoading = false;
+          _rewardedAd = null;
+        },
+      ),
+    );
+  }
+
+  Future<void> _maybeShowAdThenStart() async {
+    if (_running) return; // already running
+    if (_hasWatchedAdThisSession) {
       _start();
+      return;
+    }
+    // if rewarded ad available, show it
+    if (_rewardedAd != null) {
+      try {
+        _rewardedAd!.show(onUserEarnedReward: (ad, reward) {
+          // user earned the reward — mark it
+          _adRewardEarned = true;
+        });
+      } catch (_) {
+        // in case showing fails, fallback to start
+        _start();
+      }
     } else {
-      _end();
+      // ad not ready: start immediately and request ad in background
+      _start();
+      _loadRewardedAd();
     }
   }
+
+  // _toggleStartStop removed; Start button uses ad-aware flow directly.
 
   void _start() {
     setState(() {
@@ -638,7 +736,10 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
                 width: double.infinity,
                 child: Listener(
                   onPointerDown: (_) {
-                    if (_useHold) _start();
+                    if (_useHold) {
+                      // for hold mode, check ad before starting
+                      _maybeShowAdThenStart();
+                    }
                   },
                   onPointerUp: (_) {
                     if (_useHold) _end();
@@ -651,7 +752,15 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8)),
                     ),
-                    onPressed: _useHold ? null : _toggleStartStop,
+                    onPressed: _useHold
+                        ? null
+                        : () async {
+                            if (!_running) {
+                              await _maybeShowAdThenStart();
+                            } else {
+                              _end();
+                            }
+                          },
                     child: Text(
                       _running ? 'END' : 'START',
                       style: const TextStyle(
