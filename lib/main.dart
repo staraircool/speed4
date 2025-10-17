@@ -10,8 +10,14 @@ enum Unit { kmh, mph }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Initialize Google Mobile Ads SDK
-  await MobileAds.instance.initialize();
+  // Initialize Google Mobile Ads SDK (guarded so failures don't crash app)
+  try {
+    await MobileAds.instance.initialize();
+  } catch (e, st) {
+    // Initialization failed — print to console but continue so app doesn't crash
+    // ignore: avoid_print
+    print('MobileAds initialization failed: $e\n$st');
+  }
   runApp(const SpeedyApp());
 }
 
@@ -113,17 +119,21 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
               if (_adRewardEarned) {
                 _hasWatchedAdThisSession = true;
                 _adRewardEarned = false;
-                // Safe call to start measurement after ad finishes
-                try {
-                  _start();
-                } catch (_) {}
+                // Start measurement if still mounted
+                if (mounted) {
+                  try {
+                    _start();
+                  } catch (_) {}
+                }
               } else {
-                // user didn't finish ad — inform them
-                try {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content:
-                          Text('Ad not completed. Tap Start to try again.')));
-                } catch (_) {}
+                // user didn't finish ad — inform them if mounted
+                if (mounted) {
+                  try {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content:
+                            Text('Ad not completed. Tap Start to try again.')));
+                  } catch (_) {}
+                }
               }
               // preload next ad for future sessions if needed
               _loadRewardedAd();
@@ -132,14 +142,21 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
               ad.dispose();
               _rewardedAd = null;
               _isRewardedAdLoading = false;
-              try {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Failed to show ad. Starting now.')));
-              } catch (_) {}
-              // fallback: start immediately
-              try {
-                _start();
-              } catch (_) {}
+              if (mounted) {
+                try {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Failed to show ad. Starting now.')));
+                } catch (_) {}
+                // fallback: start immediately
+                try {
+                  _start();
+                } catch (_) {}
+              } else {
+                // if not mounted, still attempt to start safely
+                try {
+                  _start();
+                } catch (_) {}
+              }
               _loadRewardedAd();
             },
           );
