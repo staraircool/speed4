@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'speed_calc.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 
 enum Unit { kmh, mph }
 
@@ -162,16 +163,165 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
             ListTile(
                 leading: const Icon(Icons.shop),
                 title: const Text('Shop'),
-                onTap: () => Navigator.of(context).pop()),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _showShop();
+                }),
             ListTile(
                 leading: const Icon(Icons.favorite),
                 title: const Text('Donate Us'),
-                onTap: () => Navigator.of(context).pop()),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _showDonate();
+                }),
             ListTile(
                 leading: const Icon(Icons.feedback),
                 title: const Text('Leave a Feedback'),
                 onTap: () => Navigator.of(context).pop()),
           ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showShop() async {
+    final products = [
+      {
+        'title': 'Bushnell Velocity Speed Gun',
+        'image':
+            'https://m.media-amazon.com/images/I/51sB7MaUNNL._AC_UF1000,1000_QL80_.jpg',
+        'link': 'https://amzn.to/46WleYl'
+      },
+      {
+        'title': 'Sports Radar Speed Gun SR3600',
+        'image':
+            'https://m.media-amazon.com/images/I/81dd95jl4bL._AC_SL1500_.jpg',
+        'link': 'https://amzn.to/4nWDkQb'
+      },
+      {
+        'title': 'Bushnell Velocity and Trade Speed Gun',
+        'image':
+            'https://m.media-amazon.com/images/I/51Us6TGC6xL._AC_SL1152_.jpg',
+        'link': 'https://amzn.to/4nbOMpN'
+      },
+      {
+        'title': 'SS T20 Legend Club Kashmir Willow',
+        'image':
+            'https://m.media-amazon.com/images/I/61YCUKSde1L._AC_SL1500_.jpg',
+        'link': 'https://amzn.to/4nUIXhw'
+      },
+      {
+        'title': 'SS english Willow Original',
+        'image':
+            'https://m.media-amazon.com/images/I/71i6gwNyjhL._AC_SL1500_.jpg',
+        'link': 'https://amzn.to/43r99YT'
+      },
+    ];
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.8,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Shop',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
+                    IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close)),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: products.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, i) {
+                    final p = products[i];
+                    return Row(
+                      children: [
+                        Image.network(p['image']!,
+                            width: 96, height: 96, fit: BoxFit.cover),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(p['title']!,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              ElevatedButton(
+                                onPressed: () async {
+                                  final url = p['link']!;
+                                  await launchUrlString(url);
+                                },
+                                child: const Text('Buy'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showDonate() async {
+    const address = 'TSmwcK5UYd6cHdMvSqmEZcjW3wR12wMe37';
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Donate Us',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              const Text('Address (USDT, TRON/TRC20):'),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(child: SelectableText(address)),
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 18),
+                    onPressed: () {
+                      Clipboard.setData(const ClipboardData(text: address));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Address copied to clipboard')));
+                    },
+                  )
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text('Currency: USDT'),
+              const SizedBox(height: 6),
+              const Text('Network: TRON (TRC20)'),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close')),
+            ],
+          ),
         ),
       ),
     );
