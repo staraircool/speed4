@@ -38,6 +38,10 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
   bool _running = false;
   double _pitchMeters = 20.0;
   double? _speedKmh;
+  // history stored in base km/h
+  final List<double> _history = [];
+  double _animatedSpeedStart = 0.0;
+  double _animatedSpeedEnd = 0.0;
   String _instructions =
       '1) Set the pitch length (meters)\n2) Press START when you release the ball\n3) Press STOP when the ball reaches the batsman';
 
@@ -70,6 +74,9 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
         _startTime = DateTime.now();
         _running = true;
         _speedKmh = null;
+        // reset animation
+        _animatedSpeedStart = _animatedSpeedEnd;
+        _animatedSpeedEnd = _animatedSpeedStart;
       });
     } else {
       setState(() {
@@ -80,6 +87,17 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
           _speedKmh = null;
         } else {
           _speedKmh = calculateSpeedKmh(_pitchMeters, durationMs / 1000.0);
+          // push to history (store km/h base)
+          if (_speedKmh != null) {
+            _history.add(_speedKmh!);
+            if (_history.length > 6) _history.removeAt(0);
+            // update animation targets (convert to selected unit for display)
+            final displayVal = _selectedUnit == Unit.kmh
+                ? _speedKmh!
+                : (_speedKmh! * 0.621371);
+            _animatedSpeedStart = _animatedSpeedEnd;
+            _animatedSpeedEnd = displayVal;
+          }
         }
       });
     }
@@ -283,8 +301,8 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
             const Spacer(),
             IconButton(
-              icon: const Icon(Icons.menu_book),
-              tooltip: 'Instructions',
+              icon: const Icon(Icons.menu),
+              tooltip: 'Menu',
               onPressed: _showInstructionsDialog,
             ),
           ],
@@ -363,36 +381,62 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
                   ),
                 ),
               ),
+              const SizedBox(height: 12),
+              // History bar (last 6 speeds)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(6, (i) {
+                    final idx = _history.length - 6 + i;
+                    if (idx < 0 || idx >= _history.length) {
+                      return Expanded(
+                        child: Center(
+                            child: Text('--',
+                                style: TextStyle(color: Colors.grey.shade400))),
+                      );
+                    }
+                    final valKmh = _history[idx];
+                    final displayVal = _selectedUnit == Unit.kmh
+                        ? valKmh
+                        : (valKmh * 0.621371);
+                    final fastest = _history.isNotEmpty &&
+                        valKmh == _history.reduce((a, b) => a > b ? a : b);
+                    return Expanded(
+                      child: Center(
+                        child: Text(
+                          displayVal.toStringAsFixed(1),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: fastest ? Colors.red : Colors.black87,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
               const SizedBox(height: 24),
               Expanded(
                 child: Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        (() {
-                          if (_speedKmh == null) return '--';
-                          final val = _selectedUnit == Unit.kmh
-                              ? _speedKmh!
-                              : (_speedKmh! * 0.621371);
-                          return val.toStringAsFixed(1);
-                        })(),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(
+                        begin: _animatedSpeedStart, end: _animatedSpeedEnd),
+                    duration: const Duration(milliseconds: 700),
+                    builder: (context, value, child) {
+                      final displayText =
+                          _speedKmh == null ? '--' : value.toStringAsFixed(1);
+                      return Text(
+                        displayText,
                         style: const TextStyle(
                             fontSize: 96, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(width: 8),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 14.0),
-                        child: Text(
-                          'km/h',
-                          style: TextStyle(
-                              fontSize: 28,
-                              color: Colors.grey.shade700,
-                              fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
               ),
