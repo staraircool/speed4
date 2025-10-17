@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:async';
+import 'package:flutter/services.dart';
 import 'speed_calc.dart';
 
 enum Unit { kmh, mph }
@@ -42,8 +43,10 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
   final List<double> _history = [];
   double _animatedSpeedStart = 0.0;
   double _animatedSpeedEnd = 0.0;
-  String _instructions =
-      '1) Set the pitch length (meters)\n2) Press START when you release the ball\n3) Press STOP when the ball reaches the batsman';
+  // instructions removed
+
+  bool _vibrationEnabled = false;
+  bool _useHold = false; // false -> Tap (default), true -> Hold
 
   final List<int> _meterValues =
       List<int>.generate(31, (i) => 10 + i); // 10..40
@@ -70,37 +73,48 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
 
   void _toggleStartStop() {
     if (!_running) {
-      setState(() {
-        _startTime = DateTime.now();
-        _running = true;
-        _speedKmh = null;
-        // reset animation
-        _animatedSpeedStart = _animatedSpeedEnd;
-        _animatedSpeedEnd = _animatedSpeedStart;
-      });
+      _start();
     } else {
-      setState(() {
-        _endTime = DateTime.now();
-        _running = false;
-        final durationMs = _endTime.difference(_startTime).inMilliseconds;
-        if (durationMs <= 0) {
-          _speedKmh = null;
-        } else {
-          _speedKmh = calculateSpeedKmh(_pitchMeters, durationMs / 1000.0);
-          // push to history (store km/h base)
-          if (_speedKmh != null) {
-            _history.add(_speedKmh!);
-            if (_history.length > 6) _history.removeAt(0);
-            // update animation targets (convert to selected unit for display)
-            final displayVal = _selectedUnit == Unit.kmh
-                ? _speedKmh!
-                : (_speedKmh! * 0.621371);
-            _animatedSpeedStart = _animatedSpeedEnd;
-            _animatedSpeedEnd = displayVal;
+      _end();
+    }
+  }
+
+  void _start() {
+    setState(() {
+      _startTime = DateTime.now();
+      _running = true;
+      _speedKmh = null;
+      _animatedSpeedStart = _animatedSpeedEnd;
+      _animatedSpeedEnd = _animatedSpeedStart;
+    });
+  }
+
+  void _end() {
+    setState(() {
+      _endTime = DateTime.now();
+      _running = false;
+      final durationMs = _endTime.difference(_startTime).inMilliseconds;
+      if (durationMs <= 0) {
+        _speedKmh = null;
+      } else {
+        _speedKmh = calculateSpeedKmh(_pitchMeters, durationMs / 1000.0);
+        // push to history (store km/h base)
+        if (_speedKmh != null) {
+          _history.add(_speedKmh!);
+          if (_history.length > 6) _history.removeAt(0);
+          // update animation targets (convert to selected unit for display)
+          final displayVal =
+              _selectedUnit == Unit.kmh ? _speedKmh! : (_speedKmh! * 0.621371);
+          _animatedSpeedStart = _animatedSpeedEnd;
+          _animatedSpeedEnd = displayVal;
+          if (_vibrationEnabled) {
+            try {
+              HapticFeedback.vibrate();
+            } catch (_) {}
           }
         }
-      });
-    }
+      }
+    });
   }
 
   void _onMeterChanged(int index) {
@@ -120,55 +134,45 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
     });
   }
 
-  Future<void> _editInstructions() async {
-    final controller = TextEditingController(text: _instructions);
-    final ok = await showDialog<bool?>(
+  // Instructions have been removed from the main UI.
+
+  // Instructions are accessible via the nav menu (Edit kept available)
+
+  void _showNavMenu() {
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Instructions'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: TextField(
-            controller: controller,
-            maxLines: 8,
-            decoration: const InputDecoration(border: OutlineInputBorder()),
-          ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+                leading: const Icon(Icons.home),
+                title: const Text('Home'),
+                onTap: () => Navigator.of(context).pop()),
+            ListTile(
+              leading: Icon(_vibrationEnabled
+                  ? Icons.vibration
+                  : Icons.vibration_outlined),
+              title: const Text('Vibration'),
+              trailing: Switch(
+                value: _vibrationEnabled,
+                onChanged: (v) => setState(() => _vibrationEnabled = v),
+              ),
+            ),
+            ListTile(
+                leading: const Icon(Icons.shop),
+                title: const Text('Shop'),
+                onTap: () => Navigator.of(context).pop()),
+            ListTile(
+                leading: const Icon(Icons.favorite),
+                title: const Text('Donate Us'),
+                onTap: () => Navigator.of(context).pop()),
+            ListTile(
+                leading: const Icon(Icons.feedback),
+                title: const Text('Leave a Feedback'),
+                onTap: () => Navigator.of(context).pop()),
+          ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel')),
-          ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Save')),
-        ],
-      ),
-    );
-
-    if (ok == true) {
-      setState(() {
-        _instructions = controller.text;
-      });
-    }
-  }
-
-  void _showInstructionsDialog() {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Instructions'),
-        content: SingleChildScrollView(child: Text(_instructions)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close')),
-          TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _editInstructions();
-              },
-              child: const Text('Edit')),
-        ],
       ),
     );
   }
@@ -244,7 +248,7 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
   }
 
   Future<void> _showUnitPickerModal() async {
-    final units = ['km/h', 'mph'];
+    final units = ['KPH', 'MPH'];
     int currentIndex = _selectedUnit == Unit.kmh ? 0 : 1;
     await showCupertinoModalPopup<void>(
       context: context,
@@ -303,7 +307,7 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
             IconButton(
               icon: const Icon(Icons.menu),
               tooltip: 'Menu',
-              onPressed: _showInstructionsDialog,
+              onPressed: _showNavMenu,
             ),
           ],
         ),
@@ -350,6 +354,7 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
                             fontSize: 14, color: Colors.black54),
                       ),
                       const SizedBox(width: 12),
+                      const Spacer(),
                       const Icon(Icons.keyboard_arrow_down),
                     ],
                   ),
@@ -371,11 +376,12 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        _selectedUnit == Unit.kmh ? 'km/h' : 'mph',
+                        _selectedUnit == Unit.kmh ? 'KPH' : 'MPH',
                         style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(width: 8),
+                      const Spacer(),
                       const Icon(Icons.keyboard_arrow_down),
                     ],
                   ),
@@ -422,6 +428,42 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
                 ),
               ),
               const SizedBox(height: 24),
+              // Tap / Hold selector bar
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _useHold = false),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          color: _useHold ? Colors.transparent : Colors.black12,
+                          child: const Center(child: Text('Tap')),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _useHold = true),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          color: _useHold ? Colors.black12 : Colors.transparent,
+                          child: const Center(child: Text('Hold')),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
               Expanded(
                 child: Center(
                   child: TweenAnimationBuilder<double>(
@@ -444,21 +486,29 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
               // Full-width ElevatedButton for start/end
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        _running ? Colors.red.shade700 : Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: _toggleStartStop,
-                  child: Text(
-                    _running ? 'END' : 'START',
-                    style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white),
+                child: Listener(
+                  onPointerDown: (_) {
+                    if (_useHold) _start();
+                  },
+                  onPointerUp: (_) {
+                    if (_useHold) _end();
+                  },
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          _running ? Colors.red.shade700 : Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: _useHold ? null : _toggleStartStop,
+                    child: Text(
+                      _running ? 'END' : 'START',
+                      style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
                   ),
                 ),
               ),
