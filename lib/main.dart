@@ -3,6 +3,8 @@ import 'package:flutter/cupertino.dart';
 import 'dart:async';
 import 'speed_calc.dart';
 
+enum Unit { kmh, mph }
+
 void main() {
   runApp(const SpeedyApp());
 }
@@ -39,20 +41,26 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
   String _instructions =
       '1) Set the pitch length (meters)\n2) Press START when you release the ball\n3) Press STOP when the ball reaches the batsman';
 
-  final List<int> _meterValues = List<int>.generate(31, (i) => 10 + i); // 10..40
-  final List<int> _centimeterValues = List<int>.generate(101, (i) => i); // 0..100
+  final List<int> _meterValues =
+      List<int>.generate(31, (i) => 10 + i); // 10..40
+  final List<int> _centimeterValues =
+      List<int>.generate(101, (i) => i); // 0..100
   late FixedExtentScrollController _meterController;
   late FixedExtentScrollController _cmController;
   int _selectedMeterIndex = 10; // default index corresponds to 20m
   int _selectedCmIndex = 0;
+  // unit selection
+  Unit _selectedUnit = Unit.kmh;
 
   @override
   void initState() {
     super.initState();
     _selectedMeterIndex = _meterValues.indexOf(20);
     _selectedCmIndex = 0;
-    _pitchMeters = _meterValues[_selectedMeterIndex] + (_selectedCmIndex / 100.0);
-    _meterController = FixedExtentScrollController(initialItem: _selectedMeterIndex);
+    _pitchMeters =
+        _meterValues[_selectedMeterIndex] + (_selectedCmIndex / 100.0);
+    _meterController =
+        FixedExtentScrollController(initialItem: _selectedMeterIndex);
     _cmController = FixedExtentScrollController(initialItem: _selectedCmIndex);
   }
 
@@ -80,18 +88,19 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
   void _onMeterChanged(int index) {
     setState(() {
       _selectedMeterIndex = index;
-      _pitchMeters = _meterValues[_selectedMeterIndex] + (_selectedCmIndex / 100.0);
+      _pitchMeters =
+          _meterValues[_selectedMeterIndex] + (_selectedCmIndex / 100.0);
     });
   }
 
   void _onCmChanged(int index) {
     setState(() {
       _selectedCmIndex = index;
-      _pitchMeters = _meterValues[_selectedMeterIndex] + (_selectedCmIndex / 100.0);
+      _pitchMeters =
+          _meterValues[_selectedMeterIndex] + (_selectedCmIndex / 100.0);
       // if user selects 100 cm, we convert to +1m logically (handled by calculation)
     });
   }
-
 
   Future<void> _editInstructions() async {
     final controller = TextEditingController(text: _instructions);
@@ -108,8 +117,12 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Save')),
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Save')),
         ],
       ),
     );
@@ -128,7 +141,9 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
         title: const Text('Instructions'),
         content: SingleChildScrollView(child: Text(_instructions)),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close')),
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close')),
           TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
@@ -157,7 +172,8 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -182,7 +198,9 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
                       scrollController: _meterController,
                       itemExtent: 40,
                       onSelectedItemChanged: _onMeterChanged,
-                      children: _meterValues.map((m) => Center(child: Text('$m m'))).toList(),
+                      children: _meterValues
+                          .map((m) => Center(child: Text('$m m')))
+                          .toList(),
                     ),
                   ),
                   const VerticalDivider(width: 1),
@@ -191,10 +209,61 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
                       scrollController: _cmController,
                       itemExtent: 40,
                       onSelectedItemChanged: _onCmChanged,
-                      children: _centimeterValues.map((c) => Center(child: Text('${c.toString().padLeft(2, '0')} cm'))).toList(),
+                      children: _centimeterValues
+                          .map((c) => Center(
+                              child:
+                                  Text('${c.toString().padLeft(2, '0')} cm')))
+                          .toList(),
                     ),
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showUnitPickerModal() async {
+    final units = ['km/h', 'mph'];
+    int currentIndex = _selectedUnit == Unit.kmh ? 0 : 1;
+    await showCupertinoModalPopup<void>(
+      context: context,
+      builder: (context) => Container(
+        height: 220,
+        color: Colors.white,
+        child: Column(
+          children: [
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  CupertinoButton(
+                    child: const Text('Cancel'),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  CupertinoButton(
+                    child: const Text('Done'),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: CupertinoPicker(
+                scrollController:
+                    FixedExtentScrollController(initialItem: currentIndex),
+                itemExtent: 40,
+                onSelectedItemChanged: (i) {
+                  setState(() {
+                    _selectedUnit = (i == 0) ? Unit.kmh : Unit.mph;
+                  });
+                },
+                children: units.map((u) => Center(child: Text(u))).toList(),
               ),
             ),
           ],
@@ -210,9 +279,8 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
         elevation: 2,
         title: Row(
           children: [
-            Text('Speedy', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
-            const SizedBox(width: 8),
-            Text('Cricket', style: TextStyle(color: Colors.white70, fontSize: 12)),
+            Text('Speedy',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
             const Spacer(),
             IconButton(
               icon: const Icon(Icons.menu_book),
@@ -232,14 +300,18 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
               const Text(
                 'SELECT PITCH LENGTH',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 1.5),
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.5),
               ),
               const SizedBox(height: 12),
               // Tappable selector that opens a CupertinoPicker modal
               GestureDetector(
                 onTap: _showPitchPickerModal,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(8),
@@ -250,14 +322,42 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
                     children: [
                       Text(
                         '${_meterValues[_selectedMeterIndex]} m',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         '${_selectedCmIndex.toString().padLeft(2, '0')} cm',
-                        style: const TextStyle(fontSize: 14, color: Colors.black54),
+                        style: const TextStyle(
+                            fontSize: 14, color: Colors.black54),
                       ),
                       const SizedBox(width: 12),
+                      const Icon(Icons.keyboard_arrow_down),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Unit selector (opens modal)
+              GestureDetector(
+                onTap: _showUnitPickerModal,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _selectedUnit == Unit.kmh ? 'km/h' : 'mph',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(width: 8),
                       const Icon(Icons.keyboard_arrow_down),
                     ],
                   ),
@@ -271,15 +371,25 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        _speedKmh == null ? '--' : _speedKmh!.toStringAsFixed(1),
-                        style: const TextStyle(fontSize: 96, fontWeight: FontWeight.bold),
+                        (() {
+                          if (_speedKmh == null) return '--';
+                          final val = _selectedUnit == Unit.kmh
+                              ? _speedKmh!
+                              : (_speedKmh! * 0.621371);
+                          return val.toStringAsFixed(1);
+                        })(),
+                        style: const TextStyle(
+                            fontSize: 96, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(width: 8),
                       Padding(
                         padding: const EdgeInsets.only(bottom: 14.0),
                         child: Text(
                           'km/h',
-                          style: TextStyle(fontSize: 28, color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                              fontSize: 28,
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -292,14 +402,19 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _running ? Colors.red.shade700 : Colors.black,
+                    backgroundColor:
+                        _running ? Colors.red.shade700 : Colors.black,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: _toggleStartStop,
                   child: Text(
                     _running ? 'END' : 'START',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
                   ),
                 ),
               ),
