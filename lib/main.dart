@@ -5,6 +5,24 @@ import 'package:flutter/services.dart';
 import 'speed_calc.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'ads.dart';
+
+// Simple lifecycle handler to run callbacks on resume/pause
+class LifecycleEventHandler extends WidgetsBindingObserver {
+  final Future<void> Function()? resumeCallBack;
+  final Future<void> Function()? suspendCallBack;
+  LifecycleEventHandler({this.resumeCallBack, this.suspendCallBack});
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      if (resumeCallBack != null) resumeCallBack!();
+    } else if (state == AppLifecycleState.paused) {
+      if (suspendCallBack != null) suspendCallBack!();
+    }
+  }
+}
 
 enum Unit { kmh, mph }
 
@@ -88,6 +106,15 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
     _cmController = FixedExtentScrollController(initialItem: _selectedCmIndex);
     // Preload rewarded ad for the session
     _loadRewardedAd();
+    // Prepare app-open and interstitial ads (no-op if ids are empty)
+    AdsManager.instance.loadAppOpenAd();
+    AdsManager.instance.loadInterstitial();
+    // Listen to app lifecycle to show app-open ad when app resumes
+    WidgetsBinding.instance.addObserver(LifecycleEventHandler(
+      resumeCallBack: () async {
+        AdsManager.instance.showAppOpenAdIfAvailable();
+      },
+    ));
   }
 
   @override
@@ -357,12 +384,24 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
               ),
               const Divider(height: 1),
               Expanded(
-                child: ListView.separated(
+                child: ListView.builder(
                   padding: const EdgeInsets.all(12),
-                  itemCount: products.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, i) {
-                    final p = products[i];
+                  itemCount: products.length + 3, // add space for 3 banners
+                  itemBuilder: (context, index) {
+                    // We'll place banners after product indices 0,1,2 (so 3 banners total)
+                    if (index % 2 == 1 && index ~/ 2 < 3) {
+                      // banner slot
+                      return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: BannerAdWidget(
+                              unitId: AdsConfig.bannerAdUnitId, height: 50));
+                    }
+                    // calculate product index
+                    final productIndex = index - (index ~/ 2);
+                    if (productIndex < 0 || productIndex >= products.length) {
+                      return const SizedBox.shrink();
+                    }
+                    final p = products[productIndex];
                     return Row(
                       children: [
                         Image.network(p['image']!,
