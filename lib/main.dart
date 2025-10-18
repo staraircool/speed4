@@ -129,7 +129,7 @@ class _SpeedHomePageState extends State<SpeedHomePage> {
     if (_isRewardedAdLoading || _rewardedAd != null) return;
     _isRewardedAdLoading = true;
     RewardedAd.load(
-      adUnitId: 'ca-app-pub-4420776878768276/1204620705',
+      adUnitId: AdsConfig.rewardedAdUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {

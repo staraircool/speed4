@@ -1,13 +1,13 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 /// Configuration for ad unit ids. Replace empty strings with your production IDs.
 class AdsConfig {
   // Android example IDs (leave empty to show placeholders)
-  static const String appOpenAdUnitId = '';
+  static const String appOpenAdUnitId = 'ca-app-pub-4420776878768276/8951055261';
   static const String interstitialAdUnitId = '';
-  static const String bannerAdUnitId = '';
+  static const String bannerAdUnitId = 'ca-app-pub-4420776878768276/7954055402';
+  static const String rewardedAdUnitId = 'ca-app-pub-4420776878768276/1204620705';
 }
 
 /// Simple Banner widget that shows a real BannerAd when `unitId` is provided,
