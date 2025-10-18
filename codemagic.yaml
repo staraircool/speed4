@@ -1,5 +1,5 @@
 workflows:
-  android-release:
+  android-build:
     name: Android Release Build
     max_build_duration: 120
     environment:
@@ -15,14 +15,14 @@ workflows:
       - name: Decode Keystore
         script: |
           echo $KEYSTORE_BASE64 | base64 --decode > android/app/upload-keystore.jks
-      - name: Build Release AAB
+      - name: Build Signed Release AAB
         script: |
           flutter build appbundle \
             --release \
             --build-name=1.0.0 \
             --build-number=1
     artifacts:
-      - build/app/outputs/bundle/release/app-release.aab
+      - build/app/outputs/bundle/release/*.aab
     publishing:
       email:
         recipients:
