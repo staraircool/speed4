@@ -1,24 +1,26 @@
 workflows:
-  android-build:
-    name: Android App Bundle Build
+  android-release:
+    name: Android Release Build
     max_build_duration: 120
     environment:
       flutter: stable
       java: 17
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: main
-          include: true
+      vars:
+        PACKAGE_NAME: "com.pro.speedy"
     scripts:
       - name: Set up Flutter
         script: |
           flutter clean
           flutter pub get
-      - name: Build Android App Bundle
+      - name: Decode Keystore
         script: |
-          flutter build appbundle --release
+          echo $KEYSTORE_BASE64 | base64 --decode > android/app/upload-keystore.jks
+      - name: Build Release AAB
+        script: |
+          flutter build appbundle \
+            --release \
+            --build-name=1.0.0 \
+            --build-number=1
     artifacts:
       - build/app/outputs/bundle/release/app-release.aab
     publishing:
