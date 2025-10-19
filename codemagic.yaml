@@ -1,5 +1,5 @@
 workflows:
-  android-release:
+  android-build:
     name: Android Release Build
     max_build_duration: 120
     environment:
@@ -7,11 +7,11 @@ workflows:
       java: 17
       vars:
         PACKAGE_NAME: "com.pro.speedy"
-        KEYSTORE_BASE64: "<YOUR_BASE64_KEYSTORE>" # Set this in Codemagic Environment variables (secure)
-        KEYSTORE_PASSWORD: "Star234"            # Secure
-        KEY_ALIAS: "key"                         # Can be non-secure
+        KEYSTORE_BASE64: "<YOUR_BASE64_KEYSTORE>" # Secure
+        KEYSTORE_PASSWORD: "Star234"             # Secure
+        KEY_ALIAS: "key"
         KEY_PASSWORD: "Star234"                  # Secure
-    pre_build:
+    scripts:
       - name: Set up Flutter
         script: |
           flutter clean
@@ -20,7 +20,6 @@ workflows:
         script: |
           mkdir -p android/app
           echo $KEYSTORE_BASE64 | base64 --decode > android/app/upload-keystore.jks
-    build:
       - name: Build Signed Release AAB
         script: |
           flutter build appbundle --release \
