@@ -7,9 +7,10 @@ workflows:
       java: 17
       vars:
         PACKAGE_NAME: "com.pro.speedy"
-        KEYSTORE_PASSWORD: "Star234"
-        KEY_ALIAS: "key"
-        KEY_PASSWORD: "Star234"
+        KEYSTORE_BASE64: "<PASTE_YOUR_BASE64_HERE>" # Secure
+        KEYSTORE_PASSWORD: "Star234"               # Secure
+        KEY_ALIAS: "key"                           # Secure
+        KEY_PASSWORD: "Star234"                    # Secure
     scripts:
       - name: Set up Flutter
         script: |
@@ -18,13 +19,20 @@ workflows:
 
       - name: Decode Keystore
         script: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > $CM_BUILD_DIR/android/app/keystore.jks
+          mkdir -p android/app
+          echo $KEYSTORE_BASE64 | base64 --decode > android/app/keystore.jks
+          # Confirm file exists
+          ls -l android/app/keystore.jks
 
       - name: Build Signed Release AAB
         script: |
           flutter build appbundle --release \
             --build-name=1.0.0 \
             --build-number=1
-
     artifacts:
       - build/app/outputs/bundle/release/*.aab
+
+    publishing:
+      email:
+        recipients:
+          - your_email@example.com
