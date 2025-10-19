@@ -26,20 +26,23 @@ android {
         versionName flutter.versionName
     }
 
-    signingConfigs {
+ signingConfigs {
         release {
-            // Agar CM_KEYSTORE_PATH define hai to use kare, warna local keystore.jks use
-            def keystorePath = System.getenv("CM_KEYSTORE_PATH")
-            if (keystorePath != null) {
-                storeFile file(keystorePath)
-            } else {
-                storeFile file("android/app/keystore.jks")
-            }
-            storePassword System.getenv("KEYSTORE_PASSWORD") ?: "Star234"
-            keyAlias System.getenv("KEY_ALIAS") ?: "key"
-            keyPassword System.getenv("KEY_PASSWORD") ?: "Star234"
+            storeFile file("android/app/keystore.jks")  // decode step ke baad ye file exist karegi
+            storePassword System.getenv("KEYSTORE_PASSWORD")
+            keyAlias System.getenv("KEY_ALIAS")
+            keyPassword System.getenv("KEY_PASSWORD")
         }
     }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+}
 
     buildTypes {
         release {
