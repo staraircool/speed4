@@ -29,34 +29,22 @@ android {
     }
 
     signingConfigs {
-        def keystorePropertiesFile = rootProject.file('android/key.properties')
-
-        if (keystorePropertiesFile.exists()) {
-            def keystoreProperties = new Properties()
-            keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-
-            release {
-                def storePath = keystoreProperties.getProperty('storeFile')
-                storeFile new File(keystorePropertiesFile.parentFile, storePath)
+        release {
+            // Try to load from key.properties first
+            def keystorePropertiesFile = rootProject.file('android/key.properties')
+            if (keystorePropertiesFile.exists()) {
+                def keystoreProperties = new Properties()
+                keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+                storeFile rootProject.file('android/' + keystoreProperties.getProperty('storeFile'))
                 storePassword keystoreProperties.getProperty('storePassword')
                 keyAlias keystoreProperties.getProperty('keyAlias')
                 keyPassword keystoreProperties.getProperty('keyPassword')
-            }
-        } else if (System.getenv('KEYSTORE_PASSWORD') && System.getenv('KEY_ALIAS')) {
-            // CI path: assume upload-keystore.jks exists in android/ and creds in env
-            release {
-                storeFile rootProject.file('android/upload-keystore.jks')
-                storePassword System.getenv('KEYSTORE_PASSWORD')
-                keyAlias System.getenv('KEY_ALIAS')
-                keyPassword System.getenv('KEY_PASSWORD')
-            }
-        } else {
-            // fallback
-            release {
+            } else {
+                // Fallback for CI environments
                 storeFile rootProject.file('android/keystore.jks')
-                storePassword 'Star234'
-                keyAlias 'key'
-                keyPassword 'Star234'
+                storePassword System.getenv('KEYSTORE_PASSWORD') ?: 'Star234'
+                keyAlias System.getenv('KEY_ALIAS') ?: 'key'
+                keyPassword System.getenv('KEY_PASSWORD') ?: 'Star234'
             }
         }
     }
