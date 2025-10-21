@@ -37,8 +37,9 @@ android {
 
             release {
                 def storePath = keystoreProperties.getProperty('storeFile')
-                // Resolve the keystore file path relative to the key.properties file itself.
-                storeFile keystorePropertiesFile.getParentFile().toPath().resolve(storePath).toFile()
+                // This resolves the path relative to the key.properties file's parent directory,
+                // which is a robust way to handle paths for both local and CI builds.
+                storeFile new File(keystorePropertiesFile.parentFile, storePath)
                 storePassword keystoreProperties.getProperty('storePassword')
                 keyAlias keystoreProperties.getProperty('keyAlias')
                 keyPassword keystoreProperties.getProperty('keyPassword')
