@@ -8,11 +8,11 @@ android {
     namespace "com.pro.speedy"
     compileSdk flutter.compileSdkVersion
 
-    // Optional: use Flutter's ndkVersion if defined
+    // Try to use Flutter-provided ndkVersion if available
     try {
         ndkVersion flutter.ndkVersion
     } catch (Exception e) {
-        // ignore
+        // ignore if not present
     }
 
     compileOptions {
@@ -41,14 +41,22 @@ android {
 
             release {
                 def storePath = keystoreProperties.getProperty('storeFile')
-                // FIX: Remove double "android/" in path
-                def resolvedStore = storePath ? rootProject.file(storePath) : rootProject.file('android/keystore.jks')
+                def resolvedStore = (storePath && new File(storePath).isAbsolute()) ? file(storePath) : rootProject.file("android/${storePath ?: 'keystore.jks'}")
                 storeFile resolvedStore
                 storePassword keystoreProperties.getProperty('storePassword')
                 keyAlias keystoreProperties.getProperty('keyAlias')
                 keyPassword keystoreProperties.getProperty('keyPassword')
             }
+        } else if (System.getenv('KEYSTORE_PASSWORD') && System.getenv('KEY_ALIAS')) {
+            // CI path: assume upload-keystore.jks exists in android/ and creds in env
+            release {
+                storeFile rootProject.file('android/upload-keystore.jks')
+                storePassword System.getenv('KEYSTORE_PASSWORD')
+                keyAlias System.getenv('KEY_ALIAS')
+                keyPassword System.getenv('KEY_PASSWORD')
+            }
         } else {
+            // fallback
             release {
                 storeFile rootProject.file('android/keystore.jks')
                 storePassword 'Star234'
