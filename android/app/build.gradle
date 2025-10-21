@@ -37,8 +37,8 @@ android {
 
             release {
                 def storePath = keystoreProperties.getProperty('storeFile')
-                def resolvedStore = (storePath && new File(storePath).isAbsolute()) ? file(storePath) : rootProject.file("android/${storePath ?: 'keystore.jks'}")
-                storeFile resolvedStore
+                // Resolve the keystore file path relative to the key.properties file itself.
+                storeFile keystorePropertiesFile.getParentFile().toPath().resolve(storePath).toFile()
                 storePassword keystoreProperties.getProperty('storePassword')
                 keyAlias keystoreProperties.getProperty('keyAlias')
                 keyPassword keystoreProperties.getProperty('keyPassword')
