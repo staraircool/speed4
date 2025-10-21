@@ -36,7 +36,8 @@ android {
             keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 
             release {
-                storeFile rootProject.file(keystoreProperties.getProperty('storeFile'))
+                def storePath = keystoreProperties.getProperty('storeFile')
+                storeFile new File(keystorePropertiesFile.parentFile, storePath)
                 storePassword keystoreProperties.getProperty('storePassword')
                 keyAlias keystoreProperties.getProperty('keyAlias')
                 keyPassword keystoreProperties.getProperty('keyPassword')
