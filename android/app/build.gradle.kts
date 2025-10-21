@@ -59,7 +59,8 @@ android {
                 signingConfig = signingConfigs.getByName("debug") // keep debug as a placeholder
             }
             // Lint configuration: don't abort build on lint errors for release builds in CI
-            isMinifyEnabled = false
+            // Use setter to avoid unknown property on decorated BuildType
+            setMinifyEnabled(false)
             // For AGP 7+, configure lint options via lint block
             lint {
                 isAbortOnError = false
