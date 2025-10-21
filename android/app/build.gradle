@@ -36,10 +36,7 @@ android {
             keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 
             release {
-                def storePath = keystoreProperties.getProperty('storeFile')
-                // This resolves the path relative to the key.properties file's parent directory,
-                // which is a robust way to handle paths for both local and CI builds.
-                storeFile new File(keystorePropertiesFile.parentFile, storePath)
+                storeFile rootProject.file("android/${keystoreProperties.getProperty('storeFile')}")
                 storePassword keystoreProperties.getProperty('storePassword')
                 keyAlias keystoreProperties.getProperty('keyAlias')
                 keyPassword keystoreProperties.getProperty('keyPassword')
