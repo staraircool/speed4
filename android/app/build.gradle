@@ -7,11 +7,12 @@ plugins {
 android {
     namespace "com.pro.speedy"
     compileSdk flutter.compileSdkVersion
-    // Use project-configured ndkVersion if present
+
+    // Optional: use Flutter's ndkVersion if defined
     try {
         ndkVersion flutter.ndkVersion
-    } catch(Exception e) {
-        // ignore if flutter.ndkVersion isn't available
+    } catch (Exception e) {
+        // ignore
     }
 
     compileOptions {
@@ -24,36 +25,27 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.pro.speedy"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        applicationId "com.pro.speedy"
+        minSdk flutter.minSdkVersion
+        targetSdk flutter.targetSdkVersion
+        versionCode flutter.versionCode
+        versionName flutter.versionName
     }
 
     signingConfigs {
-        // Prefer key.properties in the android folder (rootProject)
         def keystorePropertiesFile = rootProject.file('android/key.properties')
         if (keystorePropertiesFile.exists()) {
             def keystoreProperties = new Properties()
             keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
             release {
                 def storePath = keystoreProperties.getProperty('storeFile')
-                def resolvedStore
-                if (storePath == null) {
-                    resolvedStore = rootProject.file('android/keystore.jks')
-                } else if (new File(storePath).isAbsolute()) {
-                    resolvedStore = file(storePath)
-                } else {
-                    resolvedStore = rootProject.file("android/${storePath}")
-                }
+                def resolvedStore = storePath ? rootProject.file("android/${storePath}") : rootProject.file('android/keystore.jks')
                 storeFile resolvedStore
                 storePassword keystoreProperties.getProperty('storePassword')
                 keyAlias keystoreProperties.getProperty('keyAlias')
                 keyPassword keystoreProperties.getProperty('keyPassword')
             }
         } else {
-            // fallback to an expected android/keystore.jks
             release {
                 storeFile rootProject.file('android/keystore.jks')
                 storePassword 'Star234'
@@ -64,62 +56,15 @@ android {
     }
 
     buildTypes {
-        getByName("release") {
-            signingConfig = signingConfigs.getByName('release')
-            isMinifyEnabled = false
-            isShrinkResources = false
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
 
 flutter {
     source '../..'
-}
-android {
-    namespace "com.pro.speedy"
-    compileSdk flutter.compileSdkVersion
-    ndkVersion flutter.ndkVersion
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-
-    defaultConfig {
-        applicationId = "com.pro.speedy"
-        minSdk = 21
-        targetSdk = 33
-        versionCode = 1
-        versionName = "1.0.0"
-    }
-
-    signingConfigs {
-        release {
-            storeFile file("upload-keystore.jks")
-            storePassword System.getenv("KEYSTORE_PASSWORD")
-            keyAlias System.getenv("KEY_ALIAS")
-            keyPassword System.getenv("KEY_PASSWORD")
-        }
-    }
-
-    buildTypes {
-        getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
-            isShrinkResources = false
-        }
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = "11"
-    }
 }
