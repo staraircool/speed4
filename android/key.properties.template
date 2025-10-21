@@ -1,0 +1,7 @@
+# Copy this file to android/key.properties and fill the values with your keystore info.
+# DO NOT commit your real key.properties to version control.
+
+storeFile=path/to/keystore.jks
+storePassword=your_keystore_password
+keyAlias=your_key_alias
+keyPassword=your_key_password

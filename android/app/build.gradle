@@ -1,6 +1,93 @@
+plugins {
+    id 'com.android.application'
+    id 'kotlin-android'
+    id 'dev.flutter.flutter-gradle-plugin'
+}
+
 android {
-    compileSdk = 33
-    namespace = "com.pro.speedy"
+    namespace "com.pro.speedy"
+    compileSdk flutter.compileSdkVersion
+    // Use project-configured ndkVersion if present
+    try {
+        ndkVersion flutter.ndkVersion
+    } catch(Exception e) {
+        // ignore if flutter.ndkVersion isn't available
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+
+    defaultConfig {
+        applicationId = "com.pro.speedy"
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
+
+    signingConfigs {
+        // Prefer key.properties in the android folder (rootProject)
+        def keystorePropertiesFile = rootProject.file('android/key.properties')
+        if (keystorePropertiesFile.exists()) {
+            def keystoreProperties = new Properties()
+            keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+            release {
+                def storePath = keystoreProperties.getProperty('storeFile')
+                def resolvedStore
+                if (storePath == null) {
+                    resolvedStore = rootProject.file('android/keystore.jks')
+                } else if (new File(storePath).isAbsolute()) {
+                    resolvedStore = file(storePath)
+                } else {
+                    resolvedStore = rootProject.file("android/${storePath}")
+                }
+                storeFile resolvedStore
+                storePassword keystoreProperties.getProperty('storePassword')
+                keyAlias keystoreProperties.getProperty('keyAlias')
+                keyPassword keystoreProperties.getProperty('keyPassword')
+            }
+        } else {
+            // fallback to an expected android/keystore.jks
+            release {
+                storeFile rootProject.file('android/keystore.jks')
+                storePassword 'Star234'
+                keyAlias 'key'
+                keyPassword 'Star234'
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            signingConfig = signingConfigs.getByName('release')
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+    }
+}
+
+flutter {
+    source '../..'
+}
+android {
+    namespace "com.pro.speedy"
+    compileSdk flutter.compileSdkVersion
+    ndkVersion flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = "11"
+    }
 
     defaultConfig {
         applicationId = "com.pro.speedy"
@@ -11,11 +98,11 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            storeFile = file("keystore.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD")
-            keyAlias = System.getenv("KEY_ALIAS")
-            keyPassword = System.getenv("KEY_PASSWORD")
+        release {
+            storeFile file("upload-keystore.jks")
+            storePassword System.getenv("KEYSTORE_PASSWORD")
+            keyAlias System.getenv("KEY_ALIAS")
+            keyPassword System.getenv("KEY_PASSWORD")
         }
     }
 
