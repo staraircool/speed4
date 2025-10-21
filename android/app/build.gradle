@@ -8,12 +8,8 @@ android {
     namespace "com.pro.speedy"
     compileSdk flutter.compileSdkVersion
 
-    // Try to use Flutter-provided ndkVersion if available
-    try {
-        ndkVersion flutter.ndkVersion
-    } catch (Exception e) {
-        // ignore if not present
-    }
+    // Force NDK version to match the installed NDK to avoid CXX1104
+    ndkVersion "27.3.13750724"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
