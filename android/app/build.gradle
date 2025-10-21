@@ -34,12 +34,15 @@ android {
 
     signingConfigs {
         def keystorePropertiesFile = rootProject.file('android/key.properties')
+
         if (keystorePropertiesFile.exists()) {
             def keystoreProperties = new Properties()
             keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+
             release {
                 def storePath = keystoreProperties.getProperty('storeFile')
-                def resolvedStore = storePath ? rootProject.file("android/${storePath}") : rootProject.file('android/keystore.jks')
+                // FIX: Remove double "android/" in path
+                def resolvedStore = storePath ? rootProject.file(storePath) : rootProject.file('android/keystore.jks')
                 storeFile resolvedStore
                 storePassword keystoreProperties.getProperty('storePassword')
                 keyAlias keystoreProperties.getProperty('keyAlias')
