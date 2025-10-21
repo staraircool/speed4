@@ -5,65 +5,41 @@ workflows:
     environment:
       flutter: stable
       java: 17
-<<<<<<< HEAD
       vars:
         PACKAGE_NAME: "com.pro.speedy"
         KEYSTORE_BASE64: "<YOUR_BASE64_KEYSTORE>" # Codemagic Secrets me set karein
-        KEYSTORE_PASSWORD: "Star234"             # Codemagic Secrets me set karein
+        KEYSTORE_PASSWORD: "Star234"
         KEY_ALIAS: "key"
         KEY_PASSWORD: "Star234"
-=======
+
     triggering:
       events:
         - push
       branch_patterns:
         - pattern: main
           include: true
->>>>>>> 7b441f0 (CI/build: fix signing path, disable lint for release, ensure ndkVersion)
+
     scripts:
       - name: Set up Flutter
         script: |
           flutter clean
           flutter pub get
+
       - name: Decode keystore and write key.properties
         script: |
-<<<<<<< HEAD
           mkdir -p android/app
-          echo $KEYSTORE_BASE64 | base64 --decode > android/app/keystore.jks
-          echo "Checking keystore file..."
-          ls -l android/app/
-          file android/app/keystore.jks
+          echo "$KEYSTORE_BASE64" | tr -d '\r\n' | base64 --decode > android/app/keystore.jks
+          echo "storeFile=keystore.jks" > android/key.properties
+          echo "storePassword=$KEYSTORE_PASSWORD" >> android/key.properties
+          echo "keyAlias=$KEY_ALIAS" >> android/key.properties
+          echo "keyPassword=$KEY_PASSWORD" >> android/key.properties
+          echo "✅ Keystore and key.properties created"
+
       - name: Build Signed Release AAB
         script: |
           flutter build appbundle --release \
             --build-name=1.0.0 \
             --build-number=1
-=======
-          set -euo pipefail
-          : "${KEYSTORE_BASE64:?Please set KEYSTORE_BASE64 in Codemagic env variables (base64 of .jks)}"
-          : "${KEYSTORE_PASSWORD:?Please set KEYSTORE_PASSWORD}"
-          : "${KEY_ALIAS:?Please set KEY_ALIAS}"
-          : "${KEY_PASSWORD:?Please set KEY_PASSWORD}"
-          # Remove CR/LF and decode safely to android/upload-keystore.jks
-          echo "$KEYSTORE_BASE64" | tr -d '\r\n' | base64 --decode > android/upload-keystore.jks
-          if [ ! -f android/upload-keystore.jks ]; then
-            echo "Keystore decode failed: android/upload-keystore.jks not found"
-            exit 1
-          fi
-          chmod 600 android/upload-keystore.jks || true
-          cat > android/key.properties <<EOF
-          storeFile=android/upload-keystore.jks
-          storePassword=${KEYSTORE_PASSWORD}
-          keyAlias=${KEY_ALIAS}
-          keyPassword=${KEY_PASSWORD}
-          EOF
-          # Masked verification (non-sensitive)
-          ls -l android | sed -n '1,200p'
-          sed -n '1,5p' android/key.properties | sed 's/=.*/=[REDACTED]/g' || true
-      - name: Build signed AAB
-        script: |
-          flutter pub get
-          flutter build appbundle --release
->>>>>>> 7b441f0 (CI/build: fix signing path, disable lint for release, ensure ndkVersion)
+
     artifacts:
       - build/app/outputs/bundle/release/*.aab
